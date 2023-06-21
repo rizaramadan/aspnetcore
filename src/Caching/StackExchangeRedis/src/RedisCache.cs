@@ -194,7 +194,7 @@ public partial class RedisCache : IDistributedCache, IDisposable
 
         token.ThrowIfCancellationRequested();
 
-        var cache = await ConnectAsync(token).ConfigureAwait(false);
+        var cache = await ConnectAsync(key, token).ConfigureAwait(false);
         Debug.Assert(cache is not null);
 
         var creationTime = DateTimeOffset.UtcNow;
@@ -283,7 +283,7 @@ public partial class RedisCache : IDistributedCache, IDisposable
         }
     }
 
-    private ValueTask<IDatabase> ConnectAsync(CancellationToken token = default)
+    private ValueTask<IDatabase> ConnectAsync(string key, CancellationToken token = default)
     {
         CheckDisposed();
         token.ThrowIfCancellationRequested();
@@ -294,9 +294,9 @@ public partial class RedisCache : IDistributedCache, IDisposable
             Debug.Assert(_cache is not null);
             return new(cache);
         }
-        return ConnectSlowAsync(token);
+        return ConnectSlowAsync(key, token);
     }
-    private async ValueTask<IDatabase> ConnectSlowAsync(CancellationToken token)
+    private async ValueTask<IDatabase> ConnectSlowAsync(string key, CancellationToken token)
     {
         await _connectionLock.WaitAsync(token).ConfigureAwait(false);
         try
@@ -305,6 +305,7 @@ public partial class RedisCache : IDistributedCache, IDisposable
             if (cache is null)
             {
                 IConnectionMultiplexer connection;
+                //TODO: change code below to choose base on key
                 if (_options.ConnectionMultiplexerFactory is null)
                 {
                     if (_options.ConfigurationOptions is not null)
@@ -323,6 +324,7 @@ public partial class RedisCache : IDistributedCache, IDisposable
 
                 PrepareConnection(connection);
                 cache = _cache = connection.GetDatabase();
+                //End TODO
             }
             Debug.Assert(_cache is not null);
             return cache;
@@ -414,7 +416,7 @@ public partial class RedisCache : IDistributedCache, IDisposable
 
         token.ThrowIfCancellationRequested();
 
-        var cache = await ConnectAsync(token).ConfigureAwait(false);
+        var cache = await ConnectAsync(key, token).ConfigureAwait(false);
         Debug.Assert(cache is not null);
 
         // This also resets the LRU status as desired.
@@ -466,7 +468,7 @@ public partial class RedisCache : IDistributedCache, IDisposable
     {
         ArgumentNullThrowHelper.ThrowIfNull(key);
 
-        var cache = await ConnectAsync(token).ConfigureAwait(false);
+        var cache = await ConnectAsync(key, token).ConfigureAwait(false);
         Debug.Assert(cache is not null);
 
         try
